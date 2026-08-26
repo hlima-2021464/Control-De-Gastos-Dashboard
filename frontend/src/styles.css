@@ -144,3 +144,19 @@ body {
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid var(--clr-glass-border-md);
 }
+
+.glass-card {
+  background: rgba(22, 20, 48, 0.70);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(139, 92, 246, 0.20);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.nav-btn-active {
+  background: rgba(139, 92, 246, 0.25) !important;
+  color: #c4b5fd !important;
+  border: 1px solid rgba(139, 92, 246, 0.45) !important;
+  font-weight: 600;
+}
+
