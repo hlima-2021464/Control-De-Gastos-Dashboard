@@ -24,6 +24,11 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'ingresos',
+    redirectTo: 'dashboard/ingresos',
+    pathMatch: 'full',
+  },
+  {
     path: '**',
     redirectTo: 'login',
   },

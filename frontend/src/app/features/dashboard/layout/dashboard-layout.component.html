@@ -1,132 +1,78 @@
-<div class="dashboard-shell" [class.sidebar-open]="sidebarOpen()">
+<div class="flex h-screen overflow-hidden font-['Plus_Jakarta_Sans',sans-serif] bg-[#0b0c16] text-[#f8fafc]">
 
-  <!-- ── Overlay para cerrar sidebar en móvil ──────────── -->
-  @if (sidebarOpen()) {
-    <div class="sidebar-overlay" (click)="closeSidebar()" aria-hidden="true"></div>
-  }
-
-  <!-- ══ SIDEBAR ══════════════════════════════════════════ -->
-  <aside class="sidebar" role="navigation" aria-label="Navegación principal">
-
-    <!-- Logo -->
-    <div class="sidebar-brand">
-      @if (!logoError()) {
-        <img
-          src="assets/logoLima.png"
-          alt="Logo Control de Gastos"
-          class="sidebar-logo"
-          (error)="onLogoError()"
-        />
-      } @else {
-        <div class="sidebar-logo-fallback" aria-hidden="true">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
-          </svg>
-        </div>
-      }
-      <div class="sidebar-brand-text">
-        <span class="sidebar-brand-name">Control</span>
-        <span class="sidebar-brand-sub">de Gastos</span>
-      </div>
-    </div>
-
-    <!-- Navegación -->
-    <nav class="sidebar-nav">
-      @for (item of navItems; track item.id) {
-        <a
-          [id]="item.id"
-          [routerLink]="item.route"
-          routerLinkActive="active"
-          [routerLinkActiveOptions]="{ exact: item.route === '/dashboard' }"
-          class="sidebar-link"
-          (click)="closeSidebar()"
-          [attr.aria-label]="item.label">
-          <svg class="sidebar-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-               fill="none" stroke="currentColor" stroke-width="1.8"
-               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path [attr.d]="item.icon"/>
-          </svg>
-          <span class="sidebar-label">{{ item.label }}</span>
-          <span class="sidebar-link-glow" aria-hidden="true"></span>
-        </a>
-      }
-    </nav>
-
-    <!-- User info en sidebar -->
-    <div class="sidebar-footer">
-      <div class="sidebar-user">
-        <div class="sidebar-avatar">{{ userInitial }}</div>
-        <div class="sidebar-user-info">
-          <p class="sidebar-username">{{ currentUser()?.username }}</p>
-          <span class="sidebar-role" [class.role-admin]="currentUser()?.role === 'ADMIN'">
-            {{ currentUser()?.role ?? 'USER' }}
-          </span>
+  <!-- 1. Menú Lateral (Sidebar) -->
+  <aside class="w-64 glass-card flex flex-col justify-between p-5 border-r border-violet-900/30 shrink-0">
+    <div class="space-y-6">
+      <!-- Logo con Imagen Real -->
+      <div class="flex items-center gap-3">
+        @if (!logoError()) {
+          <img
+            src="assets/logoLima.png"
+            alt="Logo Lima"
+            class="w-10 h-10 object-contain drop-shadow-[0_0_12px_rgba(139,92,246,0.4)]"
+            (error)="onLogoError()"
+          />
+        } @else {
+          <div class="w-10 h-10 rounded-xl bg-violet-600/30 flex items-center justify-center text-violet-300 font-bold border border-violet-500/30">
+            CG
+          </div>
+        }
+        <div>
+          <h1 class="font-bold text-sm tracking-wide text-white">CONTROL</h1>
+          <p class="text-xs text-violet-400 font-medium">de Gastos</p>
         </div>
       </div>
+
+      <!-- Navegación: Reactiva a Rutas y CSS -->
+      <nav class="space-y-1.5 text-xs">
+        @for (item of navItems; track item.id) {
+          <a
+            [id]="item.id"
+            [routerLink]="item.route"
+            routerLinkActive="nav-btn-active"
+            [routerLinkActiveOptions]="{ exact: item.route === '/dashboard' }"
+            class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-slate-400 hover:bg-slate-800/40 hover:text-slate-200 transition text-left cursor-pointer">
+            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="item.icon"></path>
+            </svg>
+            <span>{{ item.label }}</span>
+          </a>
+        }
+      </nav>
     </div>
 
+    <!-- Perfil Personal (Google OAuth / Local Session) -->
+    <div class="glass-card p-3 rounded-xl flex items-center justify-between border-slate-700/50">
+      <div class="flex items-center gap-2.5 overflow-hidden">
+        @if (userAvatarUrl) {
+          <img
+            [src]="userAvatarUrl"
+            [alt]="userDisplayName"
+            class="w-8 h-8 rounded-full object-cover border border-violet-400/40 shadow-sm shrink-0"
+          />
+        } @else {
+          <div class="w-8 h-8 rounded-full bg-violet-600/40 flex items-center justify-center font-bold text-violet-300 text-xs shrink-0">
+            {{ userInitial }}
+          </div>
+        }
+        <div class="overflow-hidden">
+          <p class="text-xs font-bold leading-none text-slate-200 truncate" [title]="userDisplayName">{{ userDisplayName }}</p>
+          <span class="text-[10px] text-violet-400 font-semibold">{{ currentUser()?.role === 'ADMIN' ? 'Admin' : 'Personal' }}</span>
+        </div>
+      </div>
+      <button
+        id="btn-layout-logout"
+        type="button"
+        (click)="logout()"
+        class="text-xs text-rose-400 hover:text-rose-300 font-medium transition cursor-pointer shrink-0 ml-2">
+        Salir
+      </button>
+    </div>
   </aside>
 
-  <!-- ══ ÁREA PRINCIPAL ══════════════════════════════════ -->
-  <div class="main-area">
-
-    <!-- ── Navbar superior ─────────────────────────────── -->
-    <header class="navbar" role="banner">
-
-      <!-- Hamburger (móvil) -->
-      <button
-        id="btn-toggle-sidebar"
-        class="nav-hamburger"
-        type="button"
-        (click)="toggleSidebar()"
-        [attr.aria-expanded]="sidebarOpen()"
-        aria-label="Abrir menú">
-        <span></span><span></span><span></span>
-      </button>
-
-      <!-- Título de la página -->
-      <div class="nav-brand-mobile">
-        <span class="nav-brand-text">Control de Gastos</span>
-      </div>
-
-      <!-- Acciones del navbar -->
-      <div class="nav-actions">
-        <!-- Avatar + nombre usuario -->
-        <div class="nav-user">
-          <div class="nav-avatar" aria-hidden="true">{{ userInitial }}</div>
-          <div class="nav-user-info">
-            <p class="nav-username">{{ currentUser()?.username }}</p>
-            <span class="nav-role" [class.role-admin]="currentUser()?.role === 'ADMIN'">
-              {{ currentUser()?.role ?? 'USER' }}
-            </span>
-          </div>
-        </div>
-
-        <!-- Botón Logout -->
-        <button
-          id="btn-dashboard-logout"
-          class="nav-logout"
-          type="button"
-          (click)="logout()"
-          aria-label="Cerrar sesión">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-               aria-hidden="true">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-            <polyline points="16 17 21 12 16 7"/>
-            <line x1="21" y1="12" x2="9" y2="12"/>
-          </svg>
-          <span class="nav-logout-text">Salir</span>
-        </button>
-      </div>
-
-    </header>
-
-    <!-- ── Contenido de las rutas hijas ────────────────── -->
-    <main class="page-content" role="main">
-      <router-outlet />
-    </main>
-
+  <!-- 2. Área Principal de Contenido -->
+  <div class="flex-1 flex flex-col overflow-hidden">
+    <router-outlet></router-outlet>
   </div>
+
 </div>
