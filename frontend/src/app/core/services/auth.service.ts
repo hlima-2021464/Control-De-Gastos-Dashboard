@@ -60,6 +60,60 @@ export class AuthService {
       );
   }
 
+  // ─── Google OAuth Login ─────────────────────────────────────
+  loginWithGoogleCredential(credential: string): UserProfile {
+    const payload = decodeJwtPayload(credential) || {};
+    const email = (payload['email'] as string) || 'usuario.google@gmail.com';
+    const name = (payload['name'] as string) || (payload['given_name'] as string) || email.split('@')[0];
+    const picture = (payload['picture'] as string) || '';
+    const sub = (payload['sub'] as string) || String(Date.now());
+
+    const user: UserProfile = {
+      id: sub,
+      username: name,
+      name: name,
+      email: email,
+      picture: picture,
+      avatarUrl: picture,
+      role: 'USER',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    this.saveSession(credential, user);
+    return user;
+  }
+
+  loginWithGoogleUser(profile: Partial<UserProfile>): UserProfile {
+    // Generar un JWT sintético válido con expiración en 24h para el watcher
+    const exp = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
+    const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+    const payloadData = {
+      sub: profile.id ?? String(Date.now()),
+      name: profile.name ?? profile.username ?? 'Usuario Google',
+      email: profile.email ?? 'usuario@gmail.com',
+      picture: profile.picture ?? profile.avatarUrl ?? '',
+      exp,
+    };
+    const payloadStr = btoa(JSON.stringify(payloadData));
+    const syntheticToken = `${header}.${payloadStr}.google_mock_signature`;
+
+    const user: UserProfile = {
+      id: profile.id ?? String(Date.now()),
+      username: profile.username ?? profile.name ?? 'Usuario Google',
+      name: profile.name ?? profile.username ?? 'Usuario Google',
+      email: profile.email ?? 'usuario@gmail.com',
+      picture: profile.picture ?? profile.avatarUrl ?? '',
+      avatarUrl: profile.avatarUrl ?? profile.picture ?? '',
+      role: profile.role ?? 'USER',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    this.saveSession(syntheticToken, user);
+    return user;
+  }
+
   // ─── Logout ─────────────────────────────────────────────────
   logout(): void {
     this.clearExpirationWatcher();

@@ -8,9 +8,12 @@ export interface LoginRequest {
 }
 
 export interface UserProfile {
-  id:         number;
+  id:         number | string;
   username:   string;
+  name?:      string;
   email:      string;
+  picture?:   string;
+  avatarUrl?: string;
   role:       'ADMIN' | 'USER';
   created_at: string;
   updated_at: string;

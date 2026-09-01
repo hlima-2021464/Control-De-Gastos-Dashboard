@@ -394,6 +394,64 @@
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ── Google OAuth & Social Login ────────────────────── */
+.oauth-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin: 1.25rem 0 1rem;
+}
+
+.oauth-line {
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.oauth-text {
+  font-size: 0.75rem;
+  color: var(--clr-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+
+.google-btn-container {
+  display: flex;
+  justify-content: center;
+  min-height: 40px;
+  margin-bottom: 0.5rem;
+}
+
+.google-btn-container:empty {
+  display: none;
+}
+
+.btn-google {
+  width: 100%;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #f8fafc;
+  border-radius: var(--radius-md);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  transition: all var(--transition);
+}
+
+.btn-google:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
+.google-icon {
+  flex-shrink: 0;
+}
+
 /* ── Panel sesión activa ────────────────────────────── */
 .session-panel {
   background: var(--clr-glass-bg);
