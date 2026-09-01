@@ -4,7 +4,7 @@ Aplicación Fullstack de alto rendimiento diseñada para la administración, mon
 
 ---
 
-## 🛠️ Stack Tecnológico
+## Stack Tecnológico
 
 | Capa | Tecnología | Descripción |
 |---|---|---|
@@ -18,7 +18,7 @@ Aplicación Fullstack de alto rendimiento diseñada para la administración, mon
 
 ---
 
-## 📁 Estructura del Proyecto
+## Estructura del Proyecto
 
 ```
 Control-De-Gastos-Dashboard/
@@ -60,7 +60,7 @@ Control-De-Gastos-Dashboard/
 
 ---
 
-## 🚀 Inicio Rápido
+## Inicio Rápido
 
 ### Prerrequisitos
 
@@ -140,7 +140,7 @@ Control-De-Gastos-Dashboard/
 
 ---
 
-## 🔐 Opciones de Autenticación
+## Opciones de Autenticación
 
 Usted puede acceder a la plataforma a través de dos mecanismos:
 
@@ -152,7 +152,7 @@ Usted puede acceder a la plataforma a través de dos mecanismos:
 
 ---
 
-## 📊 Módulos y Funcionalidades
+## Módulos y Funcionalidades
 
 ### 1. Panel de Control (Dashboard)
 - **Línea Base en Cero ($Q 0.00$)**: La aplicación inicia con todas sus métricas y tablas vacías.
@@ -174,7 +174,7 @@ Usted puede acceder a la plataforma a través de dos mecanismos:
 
 ---
 
-## 🧪 Pruebas Unitarias Automatizadas
+## Pruebas Unitarias Automatizadas
 
 El proyecto cuenta con una suite completa de pruebas unitarias implementadas con Vitest y Angular Testing Library:
 
@@ -193,7 +193,7 @@ npx ng test --no-watch
 
 ---
 
-## 📈 Historial de Incrementos
+## Historial de Incrementos
 
 - **Incremento 1 — Autenticación e Identidad**:
   - API REST de login con JWT, hashing Bcrypt, validación de esquemas y PostgreSQL.
@@ -212,7 +212,7 @@ npx ng test --no-watch
 
 ---
 
-## 🌿 Estrategia de Ramas en Git
+## Estrategia de Ramas en Git
 
 El desarrollo del proyecto se rige por el flujo en cascada:
 
@@ -220,6 +220,6 @@ $$\text{hlima-2021464 (Desarrollo activo)} \longrightarrow \text{develop (Integr
 
 ---
 
-## 📄 Licencia
+## Licencia
 
-Este proyecto es privado y para fines académicos y de administración financiera personal. Todos los derechos reservados © 2026.
+Este proyecto es privado y para fines académicos y de administración financiera personal. Todos los derechos reservados.
