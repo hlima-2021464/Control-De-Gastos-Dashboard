@@ -47,7 +47,7 @@ export async function loginHandler(
     if (error instanceof Error && error.message === 'INVALID_CREDENTIALS') {
       res.status(401).json({
         status:  'error',
-        message: 'Credenciales inválidas. Verifica tu usuario/email y contraseña.',
+        message: 'Credenciales inválidas. Verifique su usuario o email y contraseña.',
       });
       return;
     }

@@ -212,14 +212,14 @@ export class AuthService {
     let message = 'Ocurrió un error inesperado.';
 
     if (error.status === 0) {
-      message = 'No se pudo conectar con el servidor. Verifica tu conexión.';
+      message = 'No se pudo conectar con el servidor. Verifique su conexión.';
     } else if (error.status === 401) {
       message =
-        'Credenciales inválidas. Verifica tu usuario/email y contraseña.';
+        'Credenciales inválidas. Verifique su usuario o correo y contraseña.';
     } else if (error.status === 400) {
       message = error.error?.message ?? 'Datos de entrada inválidos.';
     } else if (error.status >= 500) {
-      message = 'Error interno del servidor. Intenta de nuevo más tarde.';
+      message = 'Error interno del servidor. Intente de nuevo más tarde.';
     }
 
     return throwError(() => new Error(message));

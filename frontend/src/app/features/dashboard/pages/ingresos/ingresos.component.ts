@@ -97,7 +97,7 @@ export class IngresosComponent {
   }
 
   eliminarIngreso(id: string): void {
-    if (confirm('¿Estás seguro de eliminar este registro de ingreso?')) {
+    if (confirm('¿Está seguro de eliminar este registro de ingreso?')) {
       this.incomeSvc.eliminarIngreso(id);
     }
   }
