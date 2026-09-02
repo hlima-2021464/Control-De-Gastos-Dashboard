@@ -7,14 +7,14 @@ async function bootstrap(): Promise<void> {
   await testConnection();
 
   app.listen(env.PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${env.PORT}`);
-    console.log(`📋 Health check: http://localhost:${env.PORT}/api/health`);
-    console.log(`🔐 Auth endpoint: http://localhost:${env.PORT}/api/auth/login`);
-    console.log(`🌍 Environment: ${process.env['NODE_ENV'] ?? 'development'}`);
+    console.log(`[INFO] Server running on http://localhost:${env.PORT}`);
+    console.log(`[INFO] Health check: http://localhost:${env.PORT}/api/health`);
+    console.log(`[INFO] Auth endpoint: http://localhost:${env.PORT}/api/auth/login`);
+    console.log(`[INFO] Environment: ${process.env['NODE_ENV'] ?? 'development'}`);
   });
 }
 
 bootstrap().catch((error: unknown) => {
-  console.error('❌ Failed to start server:', error);
+  console.error('[ERROR] Failed to start server:', error);
   process.exit(1);
 });
