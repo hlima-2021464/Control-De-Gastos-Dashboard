@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, inject, signal, NgZone } from '@angular/core';
+import { Component, OnInit, inject, signal, NgZone } from '@angular/core';
 import {
   FormBuilder,
   FormGroup,
@@ -20,7 +20,7 @@ declare const google: any;
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.css'],
 })
-export class LoginComponent implements OnInit, AfterViewInit {
+export class LoginComponent implements OnInit {
   private readonly fb      = inject(FormBuilder);
   private readonly authSvc = inject(AuthService);
   private readonly router  = inject(Router);
@@ -32,7 +32,7 @@ export class LoginComponent implements OnInit, AfterViewInit {
   readonly loggedUser   = signal<UserProfile | null>(null);
   readonly showPassword = signal(false);
 
-  // ─── Formulario ─────────────────────────────────────────────
+  // ─── Formulario Principal ───────────────────────────────────
   readonly loginForm: FormGroup = this.fb.group({
     identifier: ['', [Validators.required, Validators.minLength(3)]],
     password:   ['', [Validators.required, Validators.minLength(6)]],
@@ -45,93 +45,100 @@ export class LoginComponent implements OnInit, AfterViewInit {
     }
   }
 
-  ngAfterViewInit(): void {
-    this.initGoogleIdentityServices();
-  }
-
-  /** Inicializa Google Identity Services (Sign in with Google) */
-  private initGoogleIdentityServices(): void {
-    if (typeof window === 'undefined') return;
-
-    const checkGsi = () => {
-      if (typeof google !== 'undefined' && google.accounts?.id) {
-        google.accounts.id.initialize({
-          client_id: environment.googleClientId,
-          callback: (response: any) => this.handleGoogleCredentialResponse(response),
-          auto_select: false,
-          cancel_on_tap_outside: true,
-        });
-
-        const btnEl = document.getElementById('google-signin-btn');
-        if (btnEl) {
-          google.accounts.id.renderButton(btnEl, {
-            theme: 'filled_black',
-            size: 'large',
-            shape: 'pill',
-            text: 'continue_with',
-            locale: 'es',
-            width: '100%',
-          });
-        }
-      } else {
-        setTimeout(checkGsi, 200);
-      }
-    };
-
-    checkGsi();
-  }
-
-  /** Procesa la respuesta de credencial JWT de Google */
-  handleGoogleCredentialResponse(response: { credential: string }): void {
-    this.ngZone.run(() => {
-      try {
-        this.isLoading.set(true);
-        this.errorMessage.set(null);
-        const user = this.authSvc.loginWithGoogleCredential(response.credential);
-        this.loggedUser.set(user);
-        this.isLoading.set(false);
-        this.router.navigate(['/dashboard']);
-      } catch (err: any) {
-        this.isLoading.set(false);
-        this.errorMessage.set(err?.message || 'Error al autenticar con Google');
-      }
-    });
-  }
-
-  /** Inicio de sesión con Google (botón interactivo rápido / soporte OAuth) */
+  /**
+   * Flujo Oficial Google Identity Services (GIS) OAuth 2.0
+   * Abre la ventana emergente oficial de Google para seleccionar cuenta.
+   */
   iniciarConGoogle(): void {
-    if (typeof google !== 'undefined' && google.accounts?.id) {
-      google.accounts.id.prompt((notification: any) => {
-        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-          this.loginGoogleDirecto();
-        }
+    this.errorMessage.set(null);
+
+    const clientId = environment.googleClientId?.trim();
+    if (!clientId) {
+      this.errorMessage.set('No se ha configurado el Client ID de Google en el archivo environment.development.ts.');
+      return;
+    }
+
+    if (typeof google === 'undefined' || !google.accounts?.oauth2) {
+      this.errorMessage.set('El servicio de Google no se encuentra cargado. Por favor, verifique su conexión e intente nuevamente.');
+      return;
+    }
+
+    try {
+      this.isLoading.set(true);
+
+      const client = google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: 'https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email openid',
+        callback: (response: any) => {
+          if (response?.error) {
+            this.ngZone.run(() => {
+              this.isLoading.set(false);
+              if (response.error === 'access_denied') {
+                this.errorMessage.set('Inicio de sesión cancelado en la ventana de Google.');
+              } else {
+                this.errorMessage.set(`Error de autenticación con Google (${response.error}): ${response.error_description || 'Compruebe la configuración del cliente OAuth.'}`);
+              }
+            });
+            return;
+          }
+
+          if (response?.access_token) {
+            this.fetchGoogleUserProfile(response.access_token);
+          }
+        },
+        error_callback: (err: any) => {
+          this.ngZone.run(() => {
+            this.isLoading.set(false);
+            if (err?.type === 'popup_closed') {
+              this.errorMessage.set('La ventana emergente de Google fue cerrada antes de completar la selección de cuenta.');
+            } else {
+              this.errorMessage.set(`Error en la ventana emergente de Google: ${err?.message || err?.type || 'No se pudo abrir la ventana.'}`);
+            }
+          });
+        },
       });
-    } else {
-      this.loginGoogleDirecto();
+
+      // Abre la ventana emergente oficial de Google para selección de cuenta
+      client.requestAccessToken({ prompt: 'select_account' });
+    } catch (err: any) {
+      this.isLoading.set(false);
+      this.errorMessage.set(`Error al iniciar la autenticación con Google: ${err?.message || 'Error inesperado.'}`);
     }
   }
 
-  /** Login directo simulando cuenta de Gmail autorizada si GIS nativo está en modo demo */
-  loginGoogleDirecto(): void {
-    this.isLoading.set(true);
-    this.errorMessage.set(null);
-
-    setTimeout(() => {
-      this.ngZone.run(() => {
-        const user = this.authSvc.loginWithGoogleUser({
-          id: 'google-uid-1029384756',
-          name: 'Henry Lima',
-          username: 'Henry Lima',
-          email: 'hlima-2021464@kinal.edu.gt',
-          picture: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-          avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-          role: 'ADMIN',
+  /**
+   * Obtiene la información real del perfil del usuario mediante la API de Google
+   */
+  private fetchGoogleUserProfile(accessToken: string): void {
+    fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    })
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`Respuesta inválida de la API de Google (Código ${res.status}).`);
+        }
+        return res.json();
+      })
+      .then((googleProfile) => {
+        this.ngZone.run(() => {
+          const user = this.authSvc.loginWithGoogleProfile({
+            name: googleProfile.name || googleProfile.given_name || googleProfile.email.split('@')[0],
+            email: googleProfile.email,
+            picture: googleProfile.picture,
+          });
+          this.loggedUser.set(user);
+          this.isLoading.set(false);
+          this.router.navigate(['/dashboard']);
         });
-        this.loggedUser.set(user);
-        this.isLoading.set(false);
-        this.router.navigate(['/dashboard']);
+      })
+      .catch((err: any) => {
+        this.ngZone.run(() => {
+          this.isLoading.set(false);
+          this.errorMessage.set(err?.message || 'Error al obtener los datos del perfil de Google.');
+        });
       });
-    }, 400);
   }
 
   // ─── Getters para template ──────────────────────────────────
@@ -141,7 +148,7 @@ export class LoginComponent implements OnInit, AfterViewInit {
   get identifierError(): string | null {
     const ctrl = this.identifierCtrl;
     if (!ctrl.touched || ctrl.valid) return null;
-    if (ctrl.hasError('required'))   return 'El usuario o email es requerido.';
+    if (ctrl.hasError('required'))   return 'El usuario o correo electrónico es requerido.';
     if (ctrl.hasError('minlength'))  return 'Mínimo 3 caracteres.';
     return null;
   }
