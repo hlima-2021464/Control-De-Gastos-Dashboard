@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { loginHandler } from '../controllers/auth.controller';
+import { loginHandler, refreshTokenHandler } from '../controllers/auth.controller';
+import { authMiddleware } from '../../../middlewares/auth.middleware';
 
 const router = Router();
 
@@ -9,5 +10,12 @@ const router = Router();
  * @access Public
  */
 router.post('/login', loginHandler);
+
+/**
+ * @route  POST /api/auth/refresh
+ * @desc   Renovar token JWT por actividad del usuario
+ * @access Private
+ */
+router.post('/refresh', authMiddleware, refreshTokenHandler);
 
 export default router;
