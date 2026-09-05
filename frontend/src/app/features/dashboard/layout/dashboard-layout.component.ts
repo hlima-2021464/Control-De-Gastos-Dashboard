@@ -87,7 +87,7 @@ export class DashboardLayoutComponent {
 
   get userDisplayName(): string {
     const user = this.currentUser();
-    return user?.name || user?.username || 'Henry Lima';
+    return user?.name || user?.username || user?.email || 'Usuario';
   }
 
   get userAvatarUrl(): string | null {
@@ -97,6 +97,6 @@ export class DashboardLayoutComponent {
 
   get userInitial(): string {
     const name = this.userDisplayName;
-    return name.charAt(0).toUpperCase();
+    return (name && name.length > 0) ? name.charAt(0).toUpperCase() : 'U';
   }
 }

@@ -100,7 +100,17 @@ export class IncomeService {
     map((total) => (total > 0 ? total / 4 : 0))
   );
 
-  constructor() {}
+  constructor() {
+    // Sincronizar en tiempo real si el almacenamiento local cambia en otra ventana o pestaña
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', (event: StorageEvent) => {
+        if (event.key === STORAGE_KEY) {
+          const actualizados = this.cargarEstadoInicial();
+          this.ingresosSubject.next(actualizados);
+        }
+      });
+    }
+  }
 
   /** Carga inicial respetando baseline en cero */
   private cargarEstadoInicial(): IncomeItem[] {
@@ -110,7 +120,7 @@ export class IncomeService {
         return JSON.parse(guardado) as IncomeItem[];
       }
     } catch {
-      // Ignorar error de parseo y arrancar en lista vacía
+      // Ignorar error de parseo y arrancar en lista vacia
     }
     return [];
   }

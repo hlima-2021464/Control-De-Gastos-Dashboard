@@ -106,10 +106,8 @@ Control-De-Gastos-Dashboard/
    ```bash
    pnpm run seed:user
    ```
-   *Credenciales predeterminadas:*
-   - **Usuario / Correo:** `admin@example.com` (o `admin`)
-   - **Contraseña:** `Admin1234!`
-   - **Rol:** `ADMIN`
+
+   
 7. Inicie el servidor backend en modo desarrollo:
    ```bash
    npm run dev
