@@ -30,3 +30,6 @@ Thumbs.db
 
 # Angular cache
 .angular/
+
+# Repomix output
+repomix-output.xml

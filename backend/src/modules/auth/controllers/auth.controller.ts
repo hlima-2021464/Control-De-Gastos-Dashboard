@@ -54,3 +54,45 @@ export async function loginHandler(
     next(error);
   }
 }
+
+/**
+ * POST /api/auth/refresh
+ * Requiere header Authorization: Bearer <token>
+ */
+export async function refreshTokenHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({
+        status: 'error',
+        message: 'Usuario no autenticado para renovar el token.',
+      });
+      return;
+    }
+
+    const { signToken } = await import('../../../utils/jwt');
+    const newToken = signToken({
+      sub: req.user.sub,
+      username: req.user.username,
+      role: req.user.role,
+    });
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Token renovado con éxito.',
+      data: {
+        token: newToken,
+        user: {
+          id: req.user.sub,
+          username: req.user.username,
+          role: req.user.role,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}

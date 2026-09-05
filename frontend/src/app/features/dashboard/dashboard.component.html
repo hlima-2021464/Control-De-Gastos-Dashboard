@@ -194,21 +194,28 @@
       </div>
     </div>
 
-    <!-- Notificaciones Reactivas -->
+    <!-- Notificaciones Reactivas Intercaladas (1ra Amarilla, 2da Azul) -->
     <div class="glass-card p-5 rounded-2xl space-y-3">
       <div class="flex justify-between items-center">
         <h4 class="font-bold text-sm text-white">Notificaciones</h4>
         <span class="text-xs text-violet-400 font-semibold cursor-pointer hover:text-violet-300 transition">Ver todos</span>
       </div>
-      <div class="space-y-2.5 text-xs text-slate-300">
-        <div class="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
-          <p class="font-semibold text-emerald-400 text-[11px]">Módulo de Ingresos Sincronizado</p>
-          <p class="text-[10px] text-slate-300">Las métricas de ingresos y el histograma se recalculan automáticamente en tiempo real.</p>
-        </div>
-        <div class="p-2.5 bg-cyan-500/10 border border-cyan-500/20 rounded-xl">
-          <p class="font-semibold text-cyan-400 text-[11px]">Google Identity Services Activo</p>
-          <p class="text-[10px] text-slate-300">Sesión iniciada con identidad de Google OAuth 2.0.</p>
-        </div>
+      <div class="space-y-2.5 text-xs text-slate-300 max-h-56 overflow-y-auto pr-1">
+        @for (notif of notificaciones(); track notif.id; let i = $index) {
+          @if (i % 2 === 0) {
+            <!-- 1ra, 3ra, etc: Amarilla -->
+            <div class="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl transition duration-200 hover:bg-amber-500/15">
+              <p class="font-semibold text-amber-400 text-[11px]">{{ notif.titulo }}</p>
+              <p class="text-[10px] text-slate-300 mt-0.5">{{ notif.mensaje }}</p>
+            </div>
+          } @else {
+            <!-- 2da, 4ta, etc: Azul -->
+            <div class="p-2.5 bg-blue-500/10 border border-blue-500/30 rounded-xl transition duration-200 hover:bg-blue-500/15">
+              <p class="font-semibold text-blue-400 text-[11px]">{{ notif.titulo }}</p>
+              <p class="text-[10px] text-slate-300 mt-0.5">{{ notif.mensaje }}</p>
+            </div>
+          }
+        }
       </div>
     </div>
   </section>

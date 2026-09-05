@@ -3,8 +3,11 @@ import { fromEvent, merge, Subscription } from 'rxjs';
 import { throttleTime } from 'rxjs/operators';
 import { AuthService } from './auth.service';
 
-/** Tiempo de inactividad por defecto: 20 minutos (en milisegundos) */
-export const DEFAULT_IDLE_TIMEOUT_MS = 20 * 60 * 1000;
+/** Tiempo límite de inactividad total: 15 minutos (en milisegundos) */
+export const DEFAULT_IDLE_TIMEOUT_MS = 15 * 60 * 1000;
+
+/** Intervalo para renovar el token en el backend durante interacción continua: 60 segundos */
+export const REFRESH_THROTTLE_MS = 60 * 1000;
 
 @Injectable({ providedIn: 'root' })
 export class IdleService implements OnDestroy {
@@ -14,6 +17,7 @@ export class IdleService implements OnDestroy {
   private idleTimeoutMs: number = DEFAULT_IDLE_TIMEOUT_MS;
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private activitySubscription: Subscription | null = null;
+  private refreshSubscription: Subscription | null = null;
   private isRunning = false;
 
   private readonly events: (keyof WindowEventMap)[] = [
@@ -25,7 +29,7 @@ export class IdleService implements OnDestroy {
   ];
 
   constructor() {
-    // Escucha reactiva con Signal: activa/desactiva según estado de sesión
+    // Escucha reactiva: activa o desactiva la vigilancia según el estado de la sesión
     effect(() => {
       const user = this.authService.currentUser();
       const expired = this.authService.sessionExpired();
@@ -40,7 +44,7 @@ export class IdleService implements OnDestroy {
 
   /**
    * Configura e inicia la vigilancia de inactividad del usuario.
-   * @param timeoutMs Duración en ms antes de considerar inactivo (default: 20m)
+   * @param timeoutMs Duración en ms antes de considerar inactivo (15 minutos por defecto)
    */
   start(timeoutMs: number = DEFAULT_IDLE_TIMEOUT_MS): void {
     this.idleTimeoutMs = timeoutMs;
@@ -49,27 +53,40 @@ export class IdleService implements OnDestroy {
     this.isRunning = true;
     this.resetTimer();
 
-    // Registrar listeners fuera de Angular Zone para óptimo rendimiento
+    // Registrar observadores de eventos fuera de NgZone para alto rendimiento
     this.ngZone.runOutsideAngular(() => {
       const eventStreams = this.events.map((eventName) =>
         fromEvent(window, eventName, { passive: true })
       );
 
-      this.activitySubscription = merge(...eventStreams)
+      const combinedActivity$ = merge(...eventStreams);
+
+      // 1. Reiniciar continuamente el temporizador de inactividad local con throttle de 15s
+      this.activitySubscription = combinedActivity$
         .pipe(
-          // Throttle de 1 segundo para evitar reiniciar el timer miles de veces en mousemove/scroll
-          throttleTime(1000)
+          throttleTime(15_000, undefined, { leading: true, trailing: true })
         )
         .subscribe(() => {
           if (this.isRunning) {
             this.resetTimer();
           }
         });
+
+      // 2. Renovar el token en el backend con limitador de 60s mientras exista interacción
+      this.refreshSubscription = combinedActivity$
+        .pipe(
+          throttleTime(REFRESH_THROTTLE_MS, undefined, { leading: true, trailing: true })
+        )
+        .subscribe(() => {
+          if (this.isRunning) {
+            this.authService.refreshTokenOnActivity();
+          }
+        });
     });
   }
 
   /**
-   * Detiene los listeners y temporizadores de inactividad para evitar fugas de memoria.
+   * Detiene los listeners y temporizadores de inactividad.
    */
   stop(): void {
     this.isRunning = false;
@@ -78,10 +95,14 @@ export class IdleService implements OnDestroy {
       this.activitySubscription.unsubscribe();
       this.activitySubscription = null;
     }
+    if (this.refreshSubscription) {
+      this.refreshSubscription.unsubscribe();
+      this.refreshSubscription = null;
+    }
   }
 
   /**
-   * Reinicia el temporizador de inactividad.
+   * Reinicia el temporizador de inactividad al período completo configurado.
    */
   private resetTimer(): void {
     this.clearTimer();
@@ -92,7 +113,7 @@ export class IdleService implements OnDestroy {
   }
 
   /**
-   * Limpia el timeout activo.
+   * Limpia el temporizador activo.
    */
   private clearTimer(): void {
     if (this.idleTimer !== null) {
@@ -102,13 +123,11 @@ export class IdleService implements OnDestroy {
   }
 
   /**
-   * Se ejecuta cuando expira el tiempo de inactividad del usuario.
+   * Se ejecuta únicamente al agotarse el período de inactividad total.
    */
   private handleTimeout(): void {
     this.stop();
-    // Reingresar a la zona de Angular para actualizar Signals y vista
     this.ngZone.run(() => {
-      console.info('[IdleService] Tiempo de inactividad alcanzado. Disparando sesión expirada.');
       this.authService.triggerSessionExpired();
     });
   }

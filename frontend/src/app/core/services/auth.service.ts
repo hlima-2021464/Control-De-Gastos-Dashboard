@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Observable, throwError } from 'rxjs';
+import { Observable, of, throwError } from 'rxjs';
 import { catchError, tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment.development';
 import {
@@ -12,12 +12,12 @@ import {
 const TOKEN_KEY = 'auth_token';
 const USER_KEY  = 'auth_user';
 
-/** Decodifica el payload de un JWT sin verificar la firma (solo lectura de exp). */
-function decodeJwtPayload(token: string): Record<string, unknown> | null {
+/** Decodifica el payload de un JWT sin verificar la firma (solo lectura). */
+export function decodeJwtPayload(token: string): Record<string, unknown> | null {
   try {
     const parts = token.split('.');
     if (parts.length !== 3) return null;
-    // Base64url → base64 → JSON
+    // Base64url -> base64 -> JSON
     const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
     const json   = atob(base64);
     return JSON.parse(json) as Record<string, unknown>;
@@ -37,18 +37,9 @@ export class AuthService {
   /** Controla la visibilidad del modal de sesión expirada */
   readonly sessionExpired = signal<boolean>(false);
 
-  // ─── Timer de expiración ────────────────────────────────────
-  private expirationTimer: ReturnType<typeof setTimeout> | null = null;
+  constructor(private readonly http: HttpClient) {}
 
-  constructor(private readonly http: HttpClient) {
-    // Al iniciar la app (recarga de página), retomar el watcher si ya hay sesión
-    const token = this.getToken();
-    if (token) {
-      this.startExpirationWatcher(token);
-    }
-  }
-
-  // ─── Login ──────────────────────────────────────────────────
+  // ─── Login Estándar ─────────────────────────────────────────
   login(credentials: LoginRequest): Observable<AuthSuccessResponse> {
     return this.http
       .post<AuthSuccessResponse>(`${this.apiUrl}/login`, credentials)
@@ -60,12 +51,17 @@ export class AuthService {
       );
   }
 
-  // ─── Google OAuth Login ─────────────────────────────────────
+  // ─── Google OAuth Login Real (Credencial JWT oficial de GIS) ──
   loginWithGoogleCredential(credential: string): UserProfile {
     const payload = decodeJwtPayload(credential) || {};
-    const email = (payload['email'] as string) || 'usuario.google@gmail.com';
-    const name = (payload['name'] as string) || (payload['given_name'] as string) || email.split('@')[0];
-    const picture = (payload['picture'] as string) || '';
+    const email = (payload['email'] as string) || 'usuario@gmail.com';
+    const name =
+      (payload['name'] as string) ||
+      (payload['given_name'] as string) ||
+      email.split('@')[0];
+    const picture =
+      (payload['picture'] as string) ||
+      `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=8b5cf6&color=fff&bold=true`;
     const sub = (payload['sub'] as string) || String(Date.now());
 
     const user: UserProfile = {
@@ -84,28 +80,38 @@ export class AuthService {
     return user;
   }
 
-  loginWithGoogleUser(profile: Partial<UserProfile>): UserProfile {
-    // Generar un JWT sintético válido con expiración en 24h para el watcher
+  // ─── Google Direct Login (Sin requerir contraseña de Google) ─
+  loginWithGoogleProfile(profile: {
+    name: string;
+    email: string;
+    picture?: string;
+  }): UserProfile {
+    const cleanName = profile.name.trim() || profile.email.split('@')[0] || 'Usuario';
+    const cleanEmail = profile.email.trim() || 'usuario@gmail.com';
+    const cleanPicture =
+      profile.picture?.trim() ||
+      `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanName)}&background=8b5cf6&color=fff&bold=true`;
+
     const exp = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
     const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
     const payloadData = {
-      sub: profile.id ?? String(Date.now()),
-      name: profile.name ?? profile.username ?? 'Usuario Google',
-      email: profile.email ?? 'usuario@gmail.com',
-      picture: profile.picture ?? profile.avatarUrl ?? '',
+      sub: `google-${Date.now()}`,
+      name: cleanName,
+      email: cleanEmail,
+      picture: cleanPicture,
       exp,
     };
     const payloadStr = btoa(JSON.stringify(payloadData));
-    const syntheticToken = `${header}.${payloadStr}.google_mock_signature`;
+    const syntheticToken = `${header}.${payloadStr}.google_session_signature`;
 
     const user: UserProfile = {
-      id: profile.id ?? String(Date.now()),
-      username: profile.username ?? profile.name ?? 'Usuario Google',
-      name: profile.name ?? profile.username ?? 'Usuario Google',
-      email: profile.email ?? 'usuario@gmail.com',
-      picture: profile.picture ?? profile.avatarUrl ?? '',
-      avatarUrl: profile.avatarUrl ?? profile.picture ?? '',
-      role: profile.role ?? 'USER',
+      id: `google-${Date.now()}`,
+      username: cleanName,
+      name: cleanName,
+      email: cleanEmail,
+      picture: cleanPicture,
+      avatarUrl: cleanPicture,
+      role: 'USER',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -114,71 +120,54 @@ export class AuthService {
     return user;
   }
 
+  // ─── Renovación de Token por Actividad (Throttled) ───────────
+  refreshTokenOnActivity(): void {
+    const token = this.getToken();
+    if (!token || !this.currentUser()) return;
+
+    // Si es un token sintético de sesión Google, renovar su exp local
+    if (token.includes('google_session_signature') || token.includes('google_mock_signature')) {
+      const payload = decodeJwtPayload(token);
+      if (payload) {
+        payload['exp'] = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
+        const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+        const payloadStr = btoa(JSON.stringify(payload));
+        const updatedToken = `${header}.${payloadStr}.google_session_signature`;
+        localStorage.setItem(TOKEN_KEY, updatedToken);
+      }
+      return;
+    }
+
+    // Si es un token del backend, solicitar refresh al endpoint protegido
+    this.http
+      .post<AuthSuccessResponse>(`${this.apiUrl}/refresh`, {})
+      .pipe(
+        tap((response) => {
+          if (response?.data?.token) {
+            localStorage.setItem(TOKEN_KEY, response.data.token);
+          }
+        }),
+        catchError(() => of(null))
+      )
+      .subscribe();
+  }
+
   // ─── Logout ─────────────────────────────────────────────────
   logout(): void {
-    this.clearExpirationWatcher();
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     this.currentUser.set(null);
   }
 
-  // ─── Sesión expirada ─────────────────────────────────────────
-  /**
-   * Activa el modal de sesión expirada.
-   * Llamado tanto desde el interceptor HTTP (401) como desde el timer proactivo.
-   */
+  // ─── Sesión Expirada por Inactividad ────────────────────────
   triggerSessionExpired(): void {
-    // Evitar doble disparo si el modal ya está visible
     if (this.sessionExpired()) return;
     this.logout();
     this.sessionExpired.set(true);
   }
 
-  /** Cierra el modal de sesión expirada */
   clearSessionExpired(): void {
     this.sessionExpired.set(false);
-  }
-
-  // ─── Token Watcher proactivo ─────────────────────────────────
-  /**
-   * Decodifica el campo `exp` del JWT y programa un setTimeout para activar
-   * el modal exactamente cuando el token expire, sin necesidad de peticiones HTTP.
-   */
-  startExpirationWatcher(token: string): void {
-    this.clearExpirationWatcher(); // Cancelar cualquier timer anterior
-
-    const payload = decodeJwtPayload(token);
-    if (!payload || typeof payload['exp'] !== 'number') {
-      console.warn('[AuthService] No se pudo leer exp del JWT. Watcher no iniciado.');
-      return;
-    }
-
-    const expMs      = (payload['exp'] as number) * 1000; // exp está en segundos
-    const nowMs      = Date.now();
-    const remainingMs = expMs - nowMs;
-
-    if (remainingMs <= 0) {
-      // Token ya expirado al cargar
-      this.triggerSessionExpired();
-      return;
-    }
-
-    console.info(
-      `[AuthService] Token expira en ${Math.round(remainingMs / 1000)}s. Watcher activado.`
-    );
-
-    this.expirationTimer = setTimeout(() => {
-      console.info('[AuthService] Token expirado por timer. Mostrando modal.');
-      this.triggerSessionExpired();
-    }, remainingMs);
-  }
-
-  /** Cancela el timer de expiración en curso */
-  private clearExpirationWatcher(): void {
-    if (this.expirationTimer !== null) {
-      clearTimeout(this.expirationTimer);
-      this.expirationTimer = null;
-    }
   }
 
   // ─── Helpers ────────────────────────────────────────────────
@@ -187,7 +176,7 @@ export class AuthService {
   }
 
   isLoggedIn(): boolean {
-    return !!this.getToken();
+    return !!this.getToken() && !!this.currentUser();
   }
 
   // ─── Privados ───────────────────────────────────────────────
@@ -195,8 +184,7 @@ export class AuthService {
     localStorage.setItem(TOKEN_KEY, token);
     localStorage.setItem(USER_KEY, JSON.stringify(user));
     this.currentUser.set(user);
-    // Iniciar el watcher proactivo con el nuevo token
-    this.startExpirationWatcher(token);
+    this.sessionExpired.set(false);
   }
 
   private loadUser(): UserProfile | null {
@@ -209,17 +197,17 @@ export class AuthService {
   }
 
   private handleError(error: HttpErrorResponse): Observable<never> {
-    let message = 'Ocurrió un error inesperado.';
+    let message = 'Ocurrio un error inesperado.';
 
     if (error.status === 0) {
-      message = 'No se pudo conectar con el servidor. Verifique su conexión.';
+      message = 'No se pudo conectar con el servidor. Verifique su conexion.';
     } else if (error.status === 401) {
       message =
-        'Credenciales inválidas. Verifique su usuario o correo y contraseña.';
+        'Credenciales invalidas. Verifique su usuario o correo y contrasena.';
     } else if (error.status === 400) {
-      message = error.error?.message ?? 'Datos de entrada inválidos.';
+      message = error.error?.message ?? 'Datos de entrada invalidos.';
     } else if (error.status >= 500) {
-      message = 'Error interno del servidor. Intente de nuevo más tarde.';
+      message = 'Error interno del servidor. Intente de nuevo mas tarde.';
     }
 
     return throwError(() => new Error(message));

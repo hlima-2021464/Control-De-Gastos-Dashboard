@@ -22,7 +22,7 @@ export async function testConnection(): Promise<void> {
   const client = await pool.connect();
   try {
     const result = await client.query<{ now: Date }>('SELECT NOW()');
-    console.log(`✅ PostgreSQL connected — server time: ${result.rows[0].now}`);
+    console.log(`[INFO] PostgreSQL connected - server time: ${result.rows[0].now}`);
   } finally {
     client.release();
   }
